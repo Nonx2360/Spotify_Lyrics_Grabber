@@ -5,19 +5,12 @@ const progressBar = document.getElementById("progress-bar")!;
 const lyricsEl = document.getElementById("lyrics")!;
 const romajiRow = document.getElementById("romaji-row")!;
 const romajiEl = document.getElementById("romaji")!;
-const barWidth = 30;
 
 function formatTime(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
-  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
-}
-
-function renderBar(progressMs: number, durationMs: number): string {
-  const pct = durationMs > 0 ? progressMs / durationMs : 0;
-  const filled = Math.floor(pct * barWidth);
-  return "█".repeat(filled) + "░".repeat(barWidth - filled);
+  return `${min}:${String(sec).padStart(2, "0")}`;
 }
 
 function connect() {
@@ -32,12 +25,12 @@ function connect() {
     const data = JSON.parse(event.data);
     songEl.textContent = data.song || "Unknown";
     artistEl.textContent = data.artist || "Unknown";
-    timeEl.textContent = `${formatTime(data.progressMs)} | ${formatTime(data.durationMs)}`;
+    timeEl.textContent = `${formatTime(data.progressMs)} / ${formatTime(data.durationMs)}`;
     progressBar.style.width = `${data.durationMs > 0 ? (data.progressMs / data.durationMs) * 100 : 0}%`;
     lyricsEl.textContent = data.currentLyricLine || "No lyrics available";
 
     if (data.romaji) {
-      romajiRow.style.display = "flex";
+      romajiRow.style.display = "block";
       romajiEl.textContent = data.romaji;
     } else {
       romajiRow.style.display = "none";

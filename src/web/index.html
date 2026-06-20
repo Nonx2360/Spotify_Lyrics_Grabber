@@ -8,30 +8,23 @@
   </head>
   <body>
     <div id="app">
-      <div class="terminal">
-        <div class="header">SLG - Spotify Lyrics Grabber</div>
-        <div class="row">
-          <span class="label">song:</span>
-          <span id="song">Connecting...</span>
+      <div class="card">
+        <div class="header">SLG</div>
+        <div class="song-info">
+          <div id="song" class="song">Connecting...</div>
+          <div id="artist" class="artist">-</div>
         </div>
-        <div class="row">
-          <span class="label">artist:</span>
-          <span id="artist">-</span>
+        <div class="progress-row">
+          <span id="time" class="time">0:00 / 0:00</span>
+          <div class="progress-container">
+            <div id="progress-bar" class="progress-bar"></div>
+          </div>
         </div>
-        <div class="row">
-          <span class="label">time:</span>
-          <span id="time">00:00 | 00:00</span>
-        </div>
-        <div class="progress-container">
-          <div id="progress-bar" class="progress-bar"></div>
-        </div>
-        <div class="row lyric-row">
-          <span class="label">lyrics(LIVE):</span>
-          <span id="lyrics">Waiting for playback...</span>
-        </div>
-        <div id="romaji-row" class="row romaji-row" style="display: none;">
-          <span class="label"></span>
-          <span id="romaji"></span>
+        <div class="lyrics-section">
+          <div id="lyrics" class="lyrics">Waiting for playback...</div>
+          <div id="romaji-row" class="romaji" style="display: none;">
+            <span id="romaji"></span>
+          </div>
         </div>
       </div>
     </div>
