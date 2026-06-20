@@ -13,6 +13,7 @@ interface LiveState {
   currentLyricLine: string;
   romaji: string | null;
   isPlaying: boolean;
+  thumbnail: string | null;
 }
 
 let currentLyrics: LyricLine[] = [];
@@ -43,6 +44,7 @@ export function setupWebSocket(server: Server): void {
       currentLyricLine: line,
       romaji,
       isPlaying: state.isPlaying,
+      thumbnail: state.thumbnail,
     };
     broadcast(liveState);
   });

@@ -61,6 +61,7 @@ export interface PlaybackState {
   progressMs: number;
   durationMs: number;
   trackId: string;
+  thumbnail: string | null;
 }
 
 let lastTrackId = "";
@@ -90,6 +91,8 @@ async function fetchCurrentlyPlaying(): Promise<PlaybackState | null> {
   if (!res.ok) return null;
   const data = await res.json();
   if (!data || !data.item) return null;
+  const images = data.item.album?.images || [];
+  const thumbnail = images.length > 0 ? images[0].url : null;
   return {
     isPlaying: data.is_playing,
     song: data.item.name,
@@ -97,6 +100,7 @@ async function fetchCurrentlyPlaying(): Promise<PlaybackState | null> {
     progressMs: data.progress_ms || 0,
     durationMs: data.item.duration_ms || 0,
     trackId: data.item.id,
+    thumbnail,
   };
 }
 

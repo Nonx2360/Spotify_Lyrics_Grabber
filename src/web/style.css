@@ -1,3 +1,12 @@
+:root {
+  --bg-base: #0E0B16;
+  --glass-fill: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --text-primary: #F5F5F7;
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --accent: #6366f1;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,99 +14,179 @@
 }
 
 body {
-  background: #f5f7fa;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  background: var(--bg-base);
+  font-family: "Space Grotesk", -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
+  overflow: hidden;
+}
+
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  filter: blur(70px) brightness(0.45) saturate(1.3);
+  transform: scale(1.15);
+  opacity: 0;
+  transition: opacity 800ms ease;
+  z-index: 0;
+}
+
+.bg-layer.active {
+  opacity: 1;
+}
+
+#bg-layer-1 {
+  z-index: 0;
+}
+
+#bg-layer-2 {
+  z-index: 1;
 }
 
 #app {
   width: 100%;
-  max-width: 480px;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 20px;
+  position: relative;
+  z-index: 10;
 }
 
 .card {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 32px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 440px;
+  background: var(--glass-fill);
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  padding: 28px 28px 24px;
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
-.header {
+.card-header {
+  margin-bottom: 24px;
+}
+
+.wordmark {
   font-size: 12px;
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--text-muted);
+  letter-spacing: 2px;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  margin-bottom: 24px;
+}
+
+.now-playing {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.thumbnail {
+  width: 68px;
+  height: 68px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .song-info {
-  margin-bottom: 24px;
+  flex: 1;
+  min-width: 0;
 }
 
 .song {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-primary);
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .artist {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .progress-row {
-  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .time {
-  font-size: 12px;
-  color: #94a3b8;
+  font-size: 11px;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-  display: block;
-  margin-bottom: 8px;
+  min-width: 30px;
 }
 
-.progress-container {
-  width: 100%;
-  height: 4px;
-  background: #e2e8f0;
+.progress-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
   overflow: hidden;
 }
 
-.progress-bar {
+.progress-fill {
   height: 100%;
-  background: #3b82f6;
+  background: rgba(255, 255, 255, 0.7);
   width: 0%;
-  transition: width 0.3s linear;
+  transition: width 300ms linear;
   border-radius: 2px;
 }
 
 .lyrics-section {
   padding-top: 20px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .lyrics {
-  font-size: 16px;
-  color: #1e293b;
-  line-height: 1.6;
-  min-height: 24px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1.5;
+  min-height: 28px;
+  transition: color 600ms ease;
 }
 
 .romaji {
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 #romaji {
-  font-size: 13px;
-  color: #94a3b8;
-  font-style: italic;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 400;
+}
+
+@keyframes lyric-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lyrics.animate {
+  animation: lyric-in 180ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lyrics.animate { animation: none; }
+  .bg-layer { transition: none; }
+  .progress-fill { transition: none; }
 }

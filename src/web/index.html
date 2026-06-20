@@ -4,21 +4,32 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SLG - Spotify Lyrics Grabber</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
+    <div id="bg-layer-1" class="bg-layer"></div>
+    <div id="bg-layer-2" class="bg-layer"></div>
     <div id="app">
       <div class="card">
-        <div class="header">SLG</div>
-        <div class="song-info">
-          <div id="song" class="song">Connecting...</div>
-          <div id="artist" class="artist">-</div>
+        <div class="card-header">
+          <span class="wordmark">SLG</span>
+        </div>
+        <div class="now-playing">
+          <img id="thumbnail" class="thumbnail" src="" alt="" crossorigin="anonymous" style="display: none;" />
+          <div class="song-info">
+            <div id="song" class="song">Connecting...</div>
+            <div id="artist" class="artist">-</div>
+          </div>
         </div>
         <div class="progress-row">
-          <span id="time" class="time">0:00 / 0:00</span>
-          <div class="progress-container">
-            <div id="progress-bar" class="progress-bar"></div>
+          <span id="time" class="time">0:00</span>
+          <div class="progress-track">
+            <div id="progress-bar" class="progress-fill"></div>
           </div>
+          <span id="duration" class="time">0:00</span>
         </div>
         <div class="lyrics-section">
           <div id="lyrics" class="lyrics">Waiting for playback...</div>
