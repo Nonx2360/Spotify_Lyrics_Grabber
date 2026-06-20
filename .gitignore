@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.env
+*.log
+SLG_project_plan.md
+.opencode/
