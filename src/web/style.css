@@ -92,3 +92,13 @@ body {
   text-shadow: 0 0 10px rgba(51, 255, 51, 0.4);
   min-height: 24px;
 }
+
+.romaji-row {
+  margin-top: 4px;
+}
+
+#romaji {
+  color: #888;
+  font-size: 14px;
+  font-style: italic;
+}

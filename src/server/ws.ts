@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
 import { spotifyEvents, type PlaybackState } from "./spotify.js";
-import { getSyncedLyrics, getCurrentLine } from "./lyrics.js";
+import { getSyncedLyrics, getCurrentLine, type LyricLine } from "./lyrics.js";
 
 let wss: WebSocketServer;
 
@@ -11,10 +11,11 @@ interface LiveState {
   progressMs: number;
   durationMs: number;
   currentLyricLine: string;
+  romaji: string | null;
   isPlaying: boolean;
 }
 
-let currentLyrics: { timeMs: number; line: string }[] = [];
+let currentLyrics: LyricLine[] = [];
 let currentTrackId = "";
 
 export function setupWebSocket(server: Server): void {
@@ -33,13 +34,14 @@ export function setupWebSocket(server: Server): void {
   });
 
   spotifyEvents.on("playback", (state: PlaybackState) => {
-    const currentLine = getCurrentLine(currentLyrics, state.progressMs);
+    const { line, romaji } = getCurrentLine(currentLyrics, state.progressMs);
     const liveState: LiveState = {
       song: state.song,
       artist: state.artist,
       progressMs: state.progressMs,
       durationMs: state.durationMs,
-      currentLyricLine: currentLine,
+      currentLyricLine: line,
+      romaji,
       isPlaying: state.isPlaying,
     };
     broadcast(liveState);

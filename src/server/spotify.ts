@@ -17,11 +17,13 @@ async function refreshAccessToken(): Promise<string> {
   if (!refreshToken) throw new Error("No refresh token available");
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: getAuthHeader(),
+    },
     body: new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-      client_id: process.env.SPOTIFY_CLIENT_ID || "",
     }),
   });
   if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
@@ -34,13 +36,14 @@ async function refreshAccessToken(): Promise<string> {
 async function getAccessToken(code: string): Promise<void> {
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: getAuthHeader(),
+    },
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
       redirect_uri: process.env.REDIRECT_URI || "http://localhost:4000/api/callback",
-      client_id: process.env.SPOTIFY_CLIENT_ID || "",
-      client_secret: process.env.SPOTIFY_CLIENT_SECRET || "",
     }),
   });
   if (!res.ok) throw new Error(`Token exchange failed: ${res.status}`);

@@ -35,7 +35,7 @@ npm run dev:server
 
 Open `http://localhost:4000/api/login` in your browser. Log in to Spotify and authorize the app.
 
-After redirect, copy the `SPOTIFY_REFRESH_TOKEN` from the terminal output into your `.env` file.
+The refresh token saves to `.env` automatically.
 
 ### 4. Run
 
@@ -62,5 +62,12 @@ Spotify Web API  <──poll──  Backend (Node/Express + WS)
 
 - Backend polls Spotify every 1s
 - Fetches synced lyrics from lrclib.net
+- **Auto-romanizes Japanese lyrics** (kuroshiro + kuromoji) — shows romaji under the lyric line
 - Broadcasts state over WebSocket
 - Two frontends consume the same WS stream
+
+## Troubleshooting
+
+- **`EADDRINUSE: port 4000`** — Kill the old process: `netstat -ano | findstr ":4000"` then `taskkill /PID <pid> /F`
+- **No lyrics showing** — Ensure the song is playing on Spotify and the backend shows "WebSocket client connected" in the console
+- **Token refresh fails** — Re-authenticate at `http://localhost:4000/api/login`

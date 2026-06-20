@@ -55,10 +55,11 @@ function render(data: {
   progressMs: number;
   durationMs: number;
   currentLyricLine: string;
+  romaji?: string | null;
   isPlaying: boolean;
 }) {
   const bar = renderBar(data.progressMs, data.durationMs, 40);
-  const text = [
+  const lines = [
     `{bold}{green-fg}song:{/green-fg}{/bold}   {white-fg}${data.song || "Unknown"}{/white-fg}`,
     `{bold}{green-fg}artist:{/green-fg}{/bold}  {gray-fg}${data.artist || "Unknown"}{/gray-fg}`,
     `{bold}{green-fg}time:{/green-fg}{/bold}   {yellow-fg}${formatTime(data.progressMs)} | ${formatTime(data.durationMs)}{/yellow-fg}`,
@@ -67,8 +68,13 @@ function render(data: {
     "",
     `{bold}{green-fg}lyrics(LIVE):{/green-fg}{/bold}`,
     `{bold}{green-fg}${data.currentLyricLine || "No lyrics available"}{/green-fg}`,
-  ].join("\n");
-  content.setContent(text);
+  ];
+
+  if (data.romaji) {
+    lines.push(`{gray-fg}{italic}  ${data.romaji}{/italic}{/gray-fg}`);
+  }
+
+  content.setContent(lines.join("\n"));
   screen.render();
 }
 

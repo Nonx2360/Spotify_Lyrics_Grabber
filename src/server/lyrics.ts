@@ -1,6 +1,9 @@
-interface LyricLine {
+import { getRomaji } from "./romaji.js";
+
+export interface LyricLine {
   timeMs: number;
   line: string;
+  romaji: string | null;
 }
 
 interface LrcLibResponse {
@@ -13,8 +16,8 @@ interface LrcLibResponse {
 
 const lyricsCache = new Map<string, LyricLine[]>();
 
-function parseLrc(lrc: string): LyricLine[] {
-  const lines: LyricLine[] = [];
+function parseLrc(lrc: string): { timeMs: number; line: string }[] {
+  const lines: { timeMs: number; line: string }[] = [];
   const regex = /\[(\d{2}):(\d{2})\.(\d{2,3})\]/g;
   for (const raw of lrc.split("\n")) {
     const times: number[] = [];
@@ -31,6 +34,15 @@ function parseLrc(lrc: string): LyricLine[] {
     }
   }
   return lines.sort((a, b) => a.timeMs - b.timeMs);
+}
+
+async function enrichWithRomaji(lines: { timeMs: number; line: string }[]): Promise<LyricLine[]> {
+  return Promise.all(
+    lines.map(async (l) => ({
+      ...l,
+      romaji: await getRomaji(l.line),
+    }))
+  );
 }
 
 export async function getSyncedLyrics(
@@ -58,28 +70,37 @@ export async function getSyncedLyrics(
       const best =
         results.find((r) => r.syncedLyrics) || results[0];
       if (!best.syncedLyrics) {
-        return [{ timeMs: 0, line: best.plainLyrics || "No lyrics found." }];
+        const fallback = [{ timeMs: 0, line: best.plainLyrics || "No lyrics found." }];
+        const enriched = await enrichWithRomaji(fallback);
+        lyricsCache.set(cacheKey, enriched);
+        return enriched;
       }
       const parsed = parseLrc(best.syncedLyrics);
-      lyricsCache.set(cacheKey, parsed);
-      return parsed;
+      const enriched = await enrichWithRomaji(parsed);
+      lyricsCache.set(cacheKey, enriched);
+      return enriched;
     }
     const data: LrcLibResponse = await res.json();
     if (!data.syncedLyrics) {
       const fallback = [{ timeMs: 0, line: data.plainLyrics || "No lyrics found." }];
-      lyricsCache.set(cacheKey, fallback);
-      return fallback;
+      const enriched = await enrichWithRomaji(fallback);
+      lyricsCache.set(cacheKey, enriched);
+      return enriched;
     }
     const parsed = parseLrc(data.syncedLyrics);
-    lyricsCache.set(cacheKey, parsed);
-    return parsed;
+    const enriched = await enrichWithRomaji(parsed);
+    lyricsCache.set(cacheKey, enriched);
+    return enriched;
   } catch {
     return [];
   }
 }
 
-export function getCurrentLine(lyrics: LyricLine[], progressMs: number): string {
-  if (lyrics.length === 0) return "";
+export function getCurrentLine(
+  lyrics: LyricLine[],
+  progressMs: number
+): { line: string; romaji: string | null } {
+  if (lyrics.length === 0) return { line: "", romaji: null };
   let lo = 0;
   let hi = lyrics.length - 1;
   while (lo <= hi) {
@@ -87,5 +108,6 @@ export function getCurrentLine(lyrics: LyricLine[], progressMs: number): string 
     if (lyrics[mid].timeMs <= progressMs) lo = mid + 1;
     else hi = mid - 1;
   }
-  return hi >= 0 ? lyrics[hi].line : lyrics[0].line;
+  const idx = hi >= 0 ? hi : 0;
+  return { line: lyrics[idx].line, romaji: lyrics[idx].romaji };
 }

@@ -2,8 +2,8 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import { setupWebSocket } from "./ws.js";
-import { spotifyRouter } from "./spotify.js";
-import { startPolling } from "./spotify.js";
+import { spotifyRouter, startPolling } from "./spotify.js";
+import { initRomaji } from "./romaji.js";
 
 const app = express();
 const server = createServer(app);
@@ -19,7 +19,12 @@ app.get("/api/now", (_req, res) => {
 
 setupWebSocket(server);
 
-server.listen(PORT, () => {
-  console.log(`SLG backend running on http://localhost:${PORT}`);
-  startPolling();
-});
+async function start() {
+  await initRomaji();
+  server.listen(PORT, () => {
+    console.log(`SLG backend running on http://localhost:${PORT}`);
+    startPolling();
+  });
+}
+
+start();

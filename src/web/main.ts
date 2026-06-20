@@ -3,6 +3,8 @@ const artistEl = document.getElementById("artist")!;
 const timeEl = document.getElementById("time")!;
 const progressBar = document.getElementById("progress-bar")!;
 const lyricsEl = document.getElementById("lyrics")!;
+const romajiRow = document.getElementById("romaji-row")!;
+const romajiEl = document.getElementById("romaji")!;
 const barWidth = 30;
 
 function formatTime(ms: number): string {
@@ -33,6 +35,13 @@ function connect() {
     timeEl.textContent = `${formatTime(data.progressMs)} | ${formatTime(data.durationMs)}`;
     progressBar.style.width = `${data.durationMs > 0 ? (data.progressMs / data.durationMs) * 100 : 0}%`;
     lyricsEl.textContent = data.currentLyricLine || "No lyrics available";
+
+    if (data.romaji) {
+      romajiRow.style.display = "flex";
+      romajiEl.textContent = data.romaji;
+    } else {
+      romajiRow.style.display = "none";
+    }
   };
 
   ws.onclose = () => {
