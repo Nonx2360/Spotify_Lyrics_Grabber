@@ -11,12 +11,9 @@ interface LiveState {
   artist: string;
   progressMs: number;
   durationMs: number;
-  currentLyricLine: string;
-  romaji: string | null;
   isPlaying: boolean;
   thumbnail: string | null;
-  currentWords?: LyricWord[];
-  currentWordIndex?: number;
+  lyrics: LyricLine[];
 }
 
 let currentLyrics: LyricLine[] = [];
@@ -27,6 +24,18 @@ export function setupWebSocket(server: Server): void {
 
   wss.on("connection", (ws) => {
     console.log("WebSocket client connected");
+    // Send immediate state if available
+    if (currentTrackId) {
+      ws.send(JSON.stringify({
+        song: "",
+        artist: "",
+        progressMs: 0,
+        durationMs: 0,
+        isPlaying: false,
+        thumbnail: null,
+        lyrics: currentLyrics
+      }));
+    }
     ws.on("close", () => console.log("WebSocket client disconnected"));
   });
 
@@ -38,18 +47,14 @@ export function setupWebSocket(server: Server): void {
   });
 
   spotifyEvents.on("playback", (state: PlaybackState) => {
-    const { line, romaji, words, wordIndex } = getCurrentLine(currentLyrics, state.progressMs);
     const liveState: LiveState = {
       song: state.song,
       artist: state.artist,
       progressMs: state.progressMs,
       durationMs: state.durationMs,
-      currentLyricLine: line,
-      romaji,
       isPlaying: state.isPlaying,
       thumbnail: state.thumbnail,
-      currentWords: words,
-      currentWordIndex: wordIndex,
+      lyrics: currentLyrics,
     };
     broadcast(liveState);
   });

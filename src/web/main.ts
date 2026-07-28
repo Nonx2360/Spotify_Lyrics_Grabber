@@ -99,7 +99,16 @@ interface WordData {
   startMs: number;
   endMs: number;
 }
-let currentWords: WordData[] = [];
+
+interface LyricLine {
+  timeMs: number;
+  line: string;
+  romaji: string | null;
+  words?: WordData[];
+}
+
+let lyricsList: LyricLine[] = [];
+let currentLineIndex = -1;
 
 function animateElement(el: HTMLElement) {
   el.classList.remove("animate");
@@ -121,6 +130,47 @@ function updateTicker() {
     durationMs > 0 ? (currentProgress / durationMs) * 100 : 0
   }%`;
   timeEl.textContent = formatTime(currentProgress);
+
+  // Find active line index
+  let activeLineIdx = -1;
+  for (let i = 0; i < lyricsList.length; i++) {
+    if (lyricsList[i].timeMs <= currentProgress) {
+      activeLineIdx = i;
+    } else {
+      break;
+    }
+  }
+
+  // If active line changes, render it immediately
+  if (activeLineIdx !== currentLineIndex) {
+    currentLineIndex = activeLineIdx;
+    if (currentLineIndex >= 0 && lyricsList[currentLineIndex]) {
+      const activeLine = lyricsList[currentLineIndex];
+      const newLyric = activeLine.line || "";
+
+      if (activeLine.words && activeLine.words.length > 0) {
+        const wordsHtml = activeLine.words
+          .map((w: WordData) => {
+            return `<span class="lyric-word" data-start="${w.startMs}" data-end="${w.endMs}">${escapeHtml(w.word)}</span>`;
+          })
+          .join(" ");
+        lyricsEl.innerHTML = wordsHtml;
+      } else {
+        lyricsEl.innerHTML = `<span>${escapeHtml(newLyric)}</span>`;
+      }
+      animateElement(lyricsEl);
+
+      if (activeLine.romaji) {
+        romajiRow.style.display = "block";
+        romajiEl.textContent = activeLine.romaji;
+      } else {
+        romajiRow.style.display = "none";
+      }
+    } else {
+      lyricsEl.innerHTML = "<span>No lyrics available</span>";
+      romajiRow.style.display = "none";
+    }
+  }
 
   // Update lyric words progress
   const wordSpans = lyricsEl.querySelectorAll(".lyric-word");
@@ -159,38 +209,18 @@ function connect() {
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
-    songEl.textContent = data.song || "Unknown";
-    artistEl.textContent = data.artist || "Unknown";
+    
+    if (data.song && (songEl.textContent !== data.song || artistEl.textContent !== data.artist)) {
+      songEl.textContent = data.song;
+      artistEl.textContent = data.artist || "Unknown";
+      currentLineIndex = -1; // Reset to force re-render on track change
+    }
+    
     durationMs = data.durationMs || 0;
     isPlaying = data.isPlaying ?? false;
     lastProgressMs = data.progressMs || 0;
     lastUpdateTimestamp = performance.now();
-
-    const newLyric = data.currentLyricLine || "No lyrics available";
-
-    if (data.currentWords && data.currentWords.length > 0) {
-      if (newLyric !== lastLyric) {
-        lastLyric = newLyric;
-        currentWords = data.currentWords;
-        const wordsHtml = currentWords
-          .map((w: WordData) => {
-            return `<span class="lyric-word" data-start="${w.startMs}" data-end="${w.endMs}">${escapeHtml(w.word)}</span>`;
-          })
-          .join(" ");
-        lyricsEl.innerHTML = wordsHtml;
-        animateElement(lyricsEl);
-      } else {
-        // If words list updated/synced but lyric line is the same
-        currentWords = data.currentWords;
-      }
-    } else {
-      if (newLyric !== lastLyric) {
-        lastLyric = newLyric;
-        currentWords = [];
-        lyricsEl.innerHTML = `<span>${escapeHtml(newLyric)}</span>`;
-        animateElement(lyricsEl);
-      }
-    }
+    lyricsList = data.lyrics || [];
 
     if (data.thumbnail) {
       if (thumbnailEl.src !== data.thumbnail) {
@@ -201,13 +231,6 @@ function connect() {
     } else {
       thumbnailEl.style.display = "none";
       resetBackground();
-    }
-
-    if (data.romaji) {
-      romajiRow.style.display = "block";
-      romajiEl.textContent = data.romaji;
-    } else {
-      romajiRow.style.display = "none";
     }
   };
 
