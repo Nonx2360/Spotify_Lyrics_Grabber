@@ -167,10 +167,25 @@ body {
 }
 
 .lyric-word {
-  transition: color 120ms ease;
-  color: rgba(255, 255, 255, 0.35);
+  position: relative;
+  display: inline-block;
+  background: linear-gradient(
+    to right,
+    #ffffff 0%,
+    #ffffff var(--progress, 0%),
+    rgba(255, 255, 255, 0.28) var(--progress, 0%),
+    rgba(255, 255, 255, 0.28) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.25s ease;
+  transform-origin: left center;
+  margin-right: 0.28em;
+  white-space: nowrap;
 }
 
 .lyric-word.active {
-  color: #fff;
+  transform: scale(1.03);
+  filter: drop-shadow(0 2px 10px rgba(255, 255, 255, 0.25));
 }

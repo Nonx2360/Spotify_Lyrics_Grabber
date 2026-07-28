@@ -89,10 +89,64 @@ function resetBackground() {
   document.documentElement.style.setProperty("--accent", "#6366f1");
 }
 
+let lastProgressMs = 0;
+let lastUpdateTimestamp = 0;
+let isPlaying = false;
+let durationMs = 0;
+
+interface WordData {
+  word: string;
+  startMs: number;
+  endMs: number;
+}
+let currentWords: WordData[] = [];
+
 function animateElement(el: HTMLElement) {
   el.classList.remove("animate");
   void el.offsetWidth;
   el.classList.add("animate");
+}
+
+function updateTicker() {
+  requestAnimationFrame(updateTicker);
+
+  let currentProgress = lastProgressMs;
+  if (isPlaying) {
+    const elapsed = performance.now() - lastUpdateTimestamp;
+    currentProgress = Math.min(lastProgressMs + elapsed, durationMs);
+  }
+
+  // Update progress bar
+  progressBar.style.width = `${
+    durationMs > 0 ? (currentProgress / durationMs) * 100 : 0
+  }%`;
+  timeEl.textContent = formatTime(currentProgress);
+
+  // Update lyric words progress
+  const wordSpans = lyricsEl.querySelectorAll(".lyric-word");
+  wordSpans.forEach((span) => {
+    const start = parseFloat(span.getAttribute("data-start") || "0");
+    const end = parseFloat(span.getAttribute("data-end") || "0");
+    let progress = 0;
+    if (currentProgress >= end) {
+      progress = 1;
+    } else if (currentProgress >= start) {
+      if (end > start) {
+        progress = (currentProgress - start) / (end - start);
+      } else {
+        progress = 1;
+      }
+    }
+
+    const percentage = (progress * 100).toFixed(1);
+    (span as HTMLElement).style.setProperty("--progress", `${percentage}%`);
+    
+    if (progress > 0) {
+      span.classList.add("active");
+    } else {
+      span.classList.remove("active");
+    }
+  });
 }
 
 function connect() {
@@ -107,31 +161,32 @@ function connect() {
     const data = JSON.parse(event.data);
     songEl.textContent = data.song || "Unknown";
     artistEl.textContent = data.artist || "Unknown";
-    timeEl.textContent = formatTime(data.progressMs);
-    durationEl.textContent = formatTime(data.durationMs);
-    progressBar.style.width = `${
-      data.durationMs > 0 ? (data.progressMs / data.durationMs) * 100 : 0
-    }%`;
+    durationMs = data.durationMs || 0;
+    isPlaying = data.isPlaying ?? false;
+    lastProgressMs = data.progressMs || 0;
+    lastUpdateTimestamp = performance.now();
 
     const newLyric = data.currentLyricLine || "No lyrics available";
 
     if (data.currentWords && data.currentWords.length > 0) {
-      const wordsHtml = data.currentWords
-        .map((w: { word: string }, i: number) => {
-          const isActive = i <= (data.currentWordIndex ?? -1);
-          return `<span class="lyric-word${isActive ? " active" : ""}">${escapeHtml(w.word)}</span>`;
-        })
-        .join(" ");
       if (newLyric !== lastLyric) {
         lastLyric = newLyric;
+        currentWords = data.currentWords;
+        const wordsHtml = currentWords
+          .map((w: WordData) => {
+            return `<span class="lyric-word" data-start="${w.startMs}" data-end="${w.endMs}">${escapeHtml(w.word)}</span>`;
+          })
+          .join(" ");
         lyricsEl.innerHTML = wordsHtml;
         animateElement(lyricsEl);
       } else {
-        lyricsEl.innerHTML = wordsHtml;
+        // If words list updated/synced but lyric line is the same
+        currentWords = data.currentWords;
       }
     } else {
       if (newLyric !== lastLyric) {
         lastLyric = newLyric;
+        currentWords = [];
         lyricsEl.innerHTML = `<span>${escapeHtml(newLyric)}</span>`;
         animateElement(lyricsEl);
       }
@@ -166,4 +221,6 @@ function connect() {
   };
 }
 
+// Start local interpolation loop
+requestAnimationFrame(updateTicker);
 connect();
