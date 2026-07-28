@@ -117,24 +117,22 @@ function connect() {
 
     if (data.currentWords && data.currentWords.length > 0) {
       const wordsHtml = data.currentWords
-        .map((w: { word: string }) => `<span class="lyric-word">${escapeHtml(w.word)}</span>`)
+        .map((w: { word: string }, i: number) => {
+          const isActive = i <= (data.currentWordIndex ?? -1);
+          return `<span class="lyric-word${isActive ? " active" : ""}">${escapeHtml(w.word)}</span>`;
+        })
         .join(" ");
-      const pct =
-        ((data.currentWordIndex ?? 0) + 1) / data.currentWords.length * 100;
-
       if (newLyric !== lastLyric) {
         lastLyric = newLyric;
         lyricsEl.innerHTML = wordsHtml;
-        lyricsEl.style.setProperty("--highlight-pct", `${pct}%`);
         animateElement(lyricsEl);
       } else {
-        lyricsEl.style.setProperty("--highlight-pct", `${pct}%`);
+        lyricsEl.innerHTML = wordsHtml;
       }
     } else {
       if (newLyric !== lastLyric) {
         lastLyric = newLyric;
         lyricsEl.innerHTML = `<span>${escapeHtml(newLyric)}</span>`;
-        lyricsEl.style.removeProperty("--highlight-pct");
         animateElement(lyricsEl);
       }
     }

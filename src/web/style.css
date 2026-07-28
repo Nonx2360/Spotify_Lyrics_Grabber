@@ -167,49 +167,10 @@ body {
 }
 
 .lyric-word {
-  color: inherit;
+  transition: color 120ms ease;
+  color: rgba(255, 255, 255, 0.35);
 }
 
-@property --highlight-pct {
-  syntax: '<percentage>';
-  inherits: false;
-  initial-value: 0%;
-}
-
-.lyrics {
-  background: linear-gradient(
-    to right,
-    #fff 0%, #fff var(--highlight-pct),
-    rgba(255,255,255,0.2) var(--highlight-pct),
-    rgba(255,255,255,0.2) 100%
-  );
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  transition: --highlight-pct 300ms ease;
-}
-
-.romaji {
-  margin-top: 6px;
-}
-
-#romaji {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.45);
-  font-weight: 400;
-}
-
-@keyframes lyric-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.lyrics.animate {
-  animation: lyric-in 350ms ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .lyrics.animate { animation: none; }
-  .bg-layer { transition: none; }
-  .progress-fill { transition: none; }
+.lyric-word.active {
+  color: #fff;
 }
