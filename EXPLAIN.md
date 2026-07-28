@@ -15,10 +15,10 @@ Spotify App (your phone/PC)
 └────────┬────────┘
          │
          ▼
-┌─────────────────┐         ┌─────────────┐
-│  SLG Backend    │ ──────► │  lrclib.net │  (fetches synced lyrics)
-│  (Node.js)      │ ◄────── └─────────────┘
-└────────┬────────┘
+┌─────────────────┐     ┌──────────────┐     ┌─────────────┐
+│  SLG Backend    │ ──► │   Unison     │ ◄── │  lrclib.net │
+│  (Node.js)      │ ──► │ (primary)    │     │  (fallback) │
+└────────┬────────┘     └──────────────┘     └─────────────┘
          │
     WebSocket
     (live stream)
@@ -133,15 +133,61 @@ spotifyEvents.emit("playback", state);
 
 ---
 
-## 3. Lyrics Fetching (lrclib.net)
+## 3. Lyrics Fetching
 
-**File:** `src/server/lyrics.ts`
+**Files:** `src/server/lyrics-service.ts`, `src/server/providers/lrclib.ts`, `src/server/providers/unison.ts`
 
-When a new track starts, SLG fetches synced lyrics from lrclib.net (free, no API key).
+SLG uses a **provider abstraction** with fallback chain. Providers implement the `LyricsProvider` interface:
 
-**Request:**
+```typescript
+interface LyricsProvider {
+  name: string;
+  getLyrics(params: LyricsQuery): Promise<LyricLine[] | null>;
+}
 ```
-GET https://lrclib.net/api/get?track_name=Re:Re:&artist_name=ASIAN KUNG-FU GENERATION&duration=148
+
+**Provider chain:** `UnisonProvider` → `LrclibProvider` (tried in order, first match wins)
+
+### Unison (primary)
+
+Unison is a community-curated lyrics database with word-level timing (richsync). No API key needed.
+
+```
+GET https://unison.boidu.dev/lyrics?song=Re:Re:&artist=ASIAN KUNG-FU GENERATION
+```
+
+**Response format:**
+```json
+{
+  "success": true,
+  "data": {
+    "format": "ttml",
+    "syncType": "richsync",
+    "confidence": "high",
+    "lyrics": "<tt>...<p begin=\"0:12.50\"><span begin=\"...\">kawaita</span>...</p>...</tt>"
+  }
+}
+```
+
+**TTML parsing** extracts both line-level (`<p begin="...">`) and word-level (`<span begin="..." end="...">`) timing:
+
+```typescript
+function parseTtml(ttml: string) {
+  // Extract <p begin="..."> for line timestamps
+  // Extract <span begin="..." end="..."> for per-word timestamps
+  // Consecutive spans without whitespace gap are merged into full words
+  // Returns { timeMs, line, words[] }
+}
+```
+
+**Word-level data** flows through the entire pipeline to enable per-word karaoke highlighting in the web UI.
+
+### lrclib (fallback)
+
+When Unison has no match, SLG falls back to lrclib.net (free, no API key).
+
+```
+GET https://lrclib.net/api/get?track_name=Re:Re:&artist_name=ASIAN KUNG-FU GENERATION
 ```
 
 **Response contains LRC format:**
@@ -160,15 +206,19 @@ function parseLrc(lrc: string): LyricLine[] {
 }
 ```
 
-**Finding current line (binary search):**
+### Finding current line (binary search)
+
 ```typescript
 function getCurrentLine(lyrics, progressMs) {
   // Binary search for the last line whose timeMs <= progressMs
-  // O(log n) — fast enough for 1s polling
+  // Returns { line, romaji, words?, wordIndex? }
+  // wordIndex is binary-searched within words[] for per-word highlight
 }
 ```
 
-**Caching:** Lyrics are cached in memory per track (`trackId` key), so repeat plays don't refetch.
+### Caching
+
+Lyrics are cached in memory per track (`"song::artist"` key), so repeat plays don't refetch.
 
 ---
 
@@ -222,11 +272,19 @@ interface LiveState {
   romaji: string | null;
   isPlaying: boolean;
   thumbnail: string | null;
+  currentWords?: LyricWord[];     // word-level timing (richsync)
+  currentWordIndex?: number;      // which word is being sung now
+}
+
+interface LyricWord {
+  word: string;
+  startMs: number;
+  endMs: number;
 }
 
 // On every playback tick
 spotifyEvents.on("playback", (state) => {
-  const { line, romaji } = getCurrentLine(currentLyrics, state.progressMs);
+  const { line, romaji, words, wordIndex } = getCurrentLine(currentLyrics, state.progressMs);
   broadcast({
     song: state.song,
     artist: state.artist,
@@ -236,6 +294,8 @@ spotifyEvents.on("playback", (state) => {
     romaji,
     isPlaying: state.isPlaying,
     thumbnail: state.thumbnail,
+    currentWords: words,           // sent only when available
+    currentWordIndex: wordIndex,
   });
 });
 
@@ -267,13 +327,44 @@ const ws = new WebSocket(`ws://${location.host}/ws`);
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
-  // Update DOM
   songEl.textContent = data.song;
   artistEl.textContent = data.artist;
   progressBar.style.width = `${(progressMs / durationMs) * 100}%`;
-  lyricsEl.textContent = data.currentLyricLine;
+
+  if (data.currentWords) {
+    // Render word-by-word with sliding gradient highlight
+    lyricsEl.innerHTML = data.currentWords
+      .map(w => `<span class="lyric-word">${escapeHtml(w.word)}</span>`)
+      .join(" ");
+    const pct = ((data.currentWordIndex + 1) / data.currentWords.length) * 100;
+    lyricsEl.style.setProperty("--highlight-pct", `${pct}%`);
+  } else {
+    // Fallback to line-level text
+    lyricsEl.textContent = data.currentLyricLine;
+  }
 };
 ```
+
+**Word highlight via sliding gradient:**
+```css
+@property --highlight-pct {
+  syntax: '<percentage>';
+  initial-value: 0%;
+}
+
+.lyrics {
+  background: linear-gradient(to right,
+    #fff 0%, #fff var(--highlight-pct),
+    rgba(255,255,255,0.2) var(--highlight-pct),
+    rgba(255,255,255,0.2) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  transition: --highlight-pct 300ms ease;
+}
+```
+
+The gradient cut smoothly slides across the line as `currentWordIndex` advances, creating a karaoke-bar effect.
 
 **Background from album art:**
 ```typescript
@@ -339,14 +430,19 @@ lyrics(LIVE): ●
 
 ```
 1. Spotify API ──poll──► SLG Backend
-                              │
-2. lrclib.net ──fetch──► Lyrics cached per track
-                              │
-3. kuroshiro ──convert──► Romaji cached per track
-                              │
-4. WebSocket ──broadcast──► Web UI + CLI
-                              │
-5. Frontend ──render──► You see lyrics
+                               │
+2. Unison ──fetch──► (primary) │
+   lrclib.net ──fetch──► (fallback)
+                               │
+3. Lyrics cached in memory per track
+                               │
+4. kuroshiro ──convert──► Romaji cached per track
+                               │
+5. WebSocket ──broadcast──► Web UI + CLI
+   (includes words[] + wordIndex for richsync)
+                               │
+6. Frontend ──render──► Line-level text (CLI)
+                     └──► Word-by-word sliding gradient (Web)
 ```
 
 All of this happens every ~1 second while music plays.
@@ -359,20 +455,26 @@ All of this happens every ~1 second while music plays.
 SLG/
 ├── src/
 │   ├── server/
-│   │   ├── index.ts        # Express server entry point
-│   │   ├── spotify.ts      # OAuth + polling + EventEmitter
-│   │   ├── lyrics.ts       # lrclib fetch + LRC parser + romaji
-│   │   ├── romaji.ts       # kuroshiro initialization
-│   │   └── ws.ts           # WebSocket broadcast
+│   │   ├── index.ts              # Express server entry point
+│   │   ├── spotify.ts            # OAuth + polling + EventEmitter
+│   │   ├── lyrics.ts             # Facade — re-exports public API
+│   │   ├── lyrics-types.ts       # LyricLine, LyricWord, LyricsProvider interfaces
+│   │   ├── lyrics-utils.ts       # parseLrc(), enrichWithRomaji()
+│   │   ├── lyrics-service.ts     # Provider chain + cache
+│   │   ├── providers/
+│   │   │   ├── unison.ts         # Unison provider (TTML/richsync)
+│   │   │   └── lrclib.ts         # lrclib provider (LRC/plain)
+│   │   ├── romaji.ts             # kuroshiro initialization
+│   │   └── ws.ts                 # WebSocket broadcast
 │   ├── web/
-│   │   ├── index.html      # Vite entry HTML
-│   │   ├── main.ts         # WS client + DOM updates
-│   │   ├── style.css       # Liquid glass styles
-│   │   └── vite.config.ts  # Dev server + proxy
+│   │   ├── index.html            # Vite entry HTML
+│   │   ├── main.ts               # WS client + DOM updates
+│   │   ├── style.css             # Liquid glass + karaoke gradient
+│   │   └── vite.config.ts        # Dev server + proxy
 │   └── cli/
-│       └── index.ts        # blessed TUI client
-├── .env                    # Secrets (gitignored)
-├── .env.example            # Template
-├── package.json            # Dependencies + scripts
-└── tsconfig.json           # TypeScript config
+│       └── index.ts              # blessed TUI client
+├── .env                          # Secrets (gitignored)
+├── .env.example                  # Template
+├── package.json                  # Dependencies + scripts
+└── tsconfig.json                 # TypeScript config
 ```

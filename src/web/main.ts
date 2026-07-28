@@ -15,6 +15,12 @@ let inactiveLayer: HTMLElement = bgLayer2;
 let currentBgUrl = "";
 let lastLyric = "";
 
+function escapeHtml(text: string): string {
+  const el = document.createElement("span");
+  el.textContent = text;
+  return el.innerHTML;
+}
+
 function formatTime(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const min = Math.floor(totalSec / 60);
@@ -83,6 +89,12 @@ function resetBackground() {
   document.documentElement.style.setProperty("--accent", "#6366f1");
 }
 
+function animateElement(el: HTMLElement) {
+  el.classList.remove("animate");
+  void el.offsetWidth;
+  el.classList.add("animate");
+}
+
 function connect() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const ws = new WebSocket(`${proto}//${location.host}/ws`);
@@ -102,12 +114,29 @@ function connect() {
     }%`;
 
     const newLyric = data.currentLyricLine || "No lyrics available";
-    if (newLyric !== lastLyric) {
-      lastLyric = newLyric;
-      lyricsEl.textContent = newLyric;
-      lyricsEl.classList.remove("animate");
-      void lyricsEl.offsetWidth;
-      lyricsEl.classList.add("animate");
+
+    if (data.currentWords && data.currentWords.length > 0) {
+      const wordsHtml = data.currentWords
+        .map((w: { word: string }) => `<span class="lyric-word">${escapeHtml(w.word)}</span>`)
+        .join(" ");
+      const pct =
+        ((data.currentWordIndex ?? 0) + 1) / data.currentWords.length * 100;
+
+      if (newLyric !== lastLyric) {
+        lastLyric = newLyric;
+        lyricsEl.innerHTML = wordsHtml;
+        lyricsEl.style.setProperty("--highlight-pct", `${pct}%`);
+        animateElement(lyricsEl);
+      } else {
+        lyricsEl.style.setProperty("--highlight-pct", `${pct}%`);
+      }
+    } else {
+      if (newLyric !== lastLyric) {
+        lastLyric = newLyric;
+        lyricsEl.innerHTML = `<span>${escapeHtml(newLyric)}</span>`;
+        lyricsEl.style.removeProperty("--highlight-pct");
+        animateElement(lyricsEl);
+      }
     }
 
     if (data.thumbnail) {

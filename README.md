@@ -2,6 +2,11 @@
 
 Real-time Spotify lyrics display with terminal-style UI (web + CLI).
 
+- Fetches synced lyrics from **Unison** (community-curated, word-level timing) with **lrclib.net** as fallback
+- **Word-by-word highlighting** for richsync TTML tracks (karaoke-style sliding gradient)
+- **Auto-romanizes Japanese lyrics** (kuroshiro + kuromoji)
+- Lyrics from [Unison](https://unison.boidu.dev)
+
 ## Setup
 
 ### 1. Create Spotify Developer App
@@ -61,9 +66,10 @@ Spotify Web API  <──poll──  Backend (Node/Express + WS)
 ```
 
 - Backend polls Spotify every 1s
-- Fetches synced lyrics from lrclib.net
+- Fetches synced lyrics from **Unison** (primary) → **lrclib.net** (fallback)
+- Unison provides word-level timing (richsync TTML) for per-word karaoke highlighting
 - **Auto-romanizes Japanese lyrics** (kuroshiro + kuromoji) — shows romaji under the lyric line
-- Broadcasts state over WebSocket
+- Broadcasts state over WebSocket including word positions
 - Two frontends consume the same WS stream
 
 ## Troubleshooting

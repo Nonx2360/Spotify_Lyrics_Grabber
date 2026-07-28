@@ -166,6 +166,29 @@ body {
   transition: color 600ms ease;
 }
 
+.lyric-word {
+  color: inherit;
+}
+
+@property --highlight-pct {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
+
+.lyrics {
+  background: linear-gradient(
+    to right,
+    #fff 0%, #fff var(--highlight-pct),
+    rgba(255,255,255,0.2) var(--highlight-pct),
+    rgba(255,255,255,0.2) 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  transition: --highlight-pct 300ms ease;
+}
+
 .romaji {
   margin-top: 6px;
 }
@@ -177,12 +200,12 @@ body {
 }
 
 @keyframes lyric-in {
-  from { opacity: 0; transform: translateY(3px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .lyrics.animate {
-  animation: lyric-in 180ms ease-out;
+  animation: lyric-in 350ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
