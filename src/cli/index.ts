@@ -62,26 +62,72 @@ function renderBar(progressMs: number, durationMs: number, width: number): strin
 
 type ConnectionState = "connecting" | "connected" | "disconnected";
 
+interface WordData {
+  word: string;
+  startMs: number;
+  endMs: number;
+}
+
+interface LyricLine {
+  timeMs: number;
+  line: string;
+  romaji: string | null;
+  words?: WordData[];
+}
+
 let connectionState: ConnectionState = "connecting";
 let reconnectCountdown = 0;
 let blinkState = true;
+let lastBlinkTime = 0;
 
+let lyricsList: LyricLine[] = [];
+let lastProgressMs = 0;
+let lastUpdateTimestamp = 0;
+let isPlaying = false;
+let durationMs = 0;
+let lastData: any = null;
+
+// Ticker interval for smooth terminal rendering and interpolation (50ms)
 setInterval(() => {
-  blinkState = !blinkState;
+  const now = Date.now();
+  if (now - lastBlinkTime >= 600) {
+    blinkState = !blinkState;
+    lastBlinkTime = now;
+  }
+
   if (connectionState === "disconnected") {
     renderDisconnected();
-  } else if (connectionState === "connected" && !lastData) {
+    return;
+  }
+  if (connectionState === "connected" && !lastData) {
     renderIdle();
-  } else if (lastData) {
-    if (lastData.currentLyricLine) {
-      renderNormal(lastData);
+    return;
+  }
+
+  if (lastData) {
+    let currentProgress = lastProgressMs;
+    if (isPlaying) {
+      const elapsed = performance.now() - lastUpdateTimestamp;
+      currentProgress = Math.min(lastProgressMs + elapsed, durationMs);
+    }
+
+    // Find active lyric line index
+    let activeLineIdx = -1;
+    for (let i = 0; i < lyricsList.length; i++) {
+      if (lyricsList[i].timeMs <= currentProgress) {
+        activeLineIdx = i;
+      } else {
+        break;
+      }
+    }
+
+    if (activeLineIdx >= 0 && lyricsList[activeLineIdx]) {
+      renderNormal(lastData, activeLineIdx, currentProgress);
     } else {
-      renderNoLyrics(lastData);
+      renderNoLyrics(lastData, currentProgress);
     }
   }
-}, 600);
-
-let lastData: any = null;
+}, 50);
 
 function renderDisconnected() {
   const dots = ".".repeat((reconnectCountdown % 3) + 1);
@@ -105,11 +151,11 @@ function renderIdle() {
   screen.render();
 }
 
-function renderNoLyrics(data: { song: string; artist: string; progressMs: number; durationMs: number }) {
-  box.height = 11;
-  const bar = renderBar(data.progressMs, data.durationMs, 30);
+function renderNoLyrics(data: any, currentProgress: number) {
+  box.height = 8;
+  const bar = renderBar(currentProgress, durationMs, 30);
   const liveIndicator = blinkState ? "{green-fg}\u25CF" : "{gray-fg}\u25CB}";
-  const timeStr = `${formatTime(data.progressMs)}  ${bar}  ${formatTime(data.durationMs)}`;
+  const timeStr = `${formatTime(currentProgress)}  ${bar}  ${formatTime(durationMs)}`;
   const lines = [
     `{gray-fg}song:{/}    {white-fg}{bold}${data.song || "Unknown"}{/bold}{/}`,
     `{gray-fg}artist:{/}   {white-fg}${data.artist || "Unknown Artist"}{/}`,
@@ -123,20 +169,29 @@ function renderNoLyrics(data: { song: string; artist: string; progressMs: number
   screen.render();
 }
 
-function renderNormal(data: {
-  song: string;
-  artist: string;
-  progressMs: number;
-  durationMs: number;
-  currentLyricLine: string;
-  romaji?: string | null;
-  isPlaying: boolean;
-}) {
-  lastData = data;
-  const bar = renderBar(data.progressMs, data.durationMs, 30);
+function renderNormal(data: any, activeLineIdx: number, currentProgress: number) {
+  const bar = renderBar(currentProgress, durationMs, 30);
   const liveIndicator = blinkState ? "{green-fg}\u25CF" : "{gray-fg}\u25CB}";
-  const lyricLine = data.currentLyricLine || "No lyrics available";
-  const timeStr = `${formatTime(data.progressMs)}  ${bar}  ${formatTime(data.durationMs)}`;
+  const timeStr = `${formatTime(currentProgress)}  ${bar}  ${formatTime(durationMs)}`;
+
+  const activeLine = lyricsList[activeLineIdx];
+  let lyricLine = "";
+
+  if (activeLine.words && activeLine.words.length > 0) {
+    lyricLine = activeLine.words
+      .map((w: WordData) => {
+        if (currentProgress >= w.endMs) {
+          return `{white-fg}{bold}${w.word}{/bold}{/}`;
+        } else if (currentProgress >= w.startMs) {
+          return `{cyan-fg}{bold}${w.word}{/bold}{/}`;
+        } else {
+          return `{gray-fg}${w.word}{/}`;
+        }
+      })
+      .join(" ");
+  } else {
+    lyricLine = `{white-fg}{bold}${activeLine.line || ""}{/bold}{/}`;
+  }
 
   const lines = [
     `{gray-fg}song:{/}    {white-fg}{bold}${data.song || "Unknown"}{/bold}{/}`,
@@ -145,11 +200,11 @@ function renderNormal(data: {
     `  {white-fg}${timeStr}{/}`,
     "",
     `  {gray-fg}lyrics(LIVE):{/} ${liveIndicator}`,
-    `{white-fg}{bold}${lyricLine}{/bold}{/}`,
+    `  ${lyricLine}`,
   ];
 
-  if (data.romaji) {
-    lines.push(`{gray-fg}{italic}  ${data.romaji}{/italic}{/}`);
+  if (activeLine.romaji) {
+    lines.push(`{gray-fg}{italic}  ${activeLine.romaji}{/italic}{/}`);
     box.height = 10;
   } else {
     box.height = 9;
@@ -175,11 +230,12 @@ function connect() {
   ws.on("message", (raw) => {
     try {
       const data = JSON.parse(raw.toString());
-      if (!data.currentLyricLine) {
-        renderNoLyrics(data);
-      } else {
-        renderNormal(data);
-      }
+      lastData = data;
+      durationMs = data.durationMs || 0;
+      isPlaying = data.isPlaying ?? false;
+      lastProgressMs = data.progressMs || 0;
+      lastUpdateTimestamp = performance.now();
+      lyricsList = data.lyrics || [];
     } catch {}
   });
 
